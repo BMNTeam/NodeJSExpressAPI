@@ -34,6 +34,8 @@ mongoose.connection.on('error', (err) => {
   return;
 });
 
+mongoose.Promise = global.Promise;
+
 app.use((req, res, next) => {
   const error = new Error('Not found');
   error.status = 404;
