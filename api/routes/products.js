@@ -1,12 +1,42 @@
 const express = require('express');
 const router = express.Router();
 const mongoose = require('mongoose');
+const multer = require('multer');
+
+const storage = multer.diskStorage({
+  destination: function(req, file, cb) {
+    cb(null, './uploads/')
+  },
+  filename: function(req, file, cb) {
+    cb(null, new Date().toISOString() + file.originalname)
+  }
+});
+
+
+
+const fileFilter = (req, file, cb) => {
+  //reject file
+  if (file.mimetype === 'image/jpeg' || file.mimetype === 'image/png') {
+    cb(null, true)
+  } else {
+    cb(new Error('not matched type'), false)
+  }
+};
+
+const upload = multer(
+    {
+      storage: storage,
+      limits: {
+        fileSize: 1024 * 1024 * 3
+      },
+      fileFilter: fileFilter
+    });
 
 const Product = require('../models/product');
 
 router.get('/', (req, res, next) => {
   Product.find()
-      .select('name price _id')
+      .select('name price _id productImage')
       .exec()
       .then(docs => {
         console.log(docs);
@@ -18,6 +48,7 @@ router.get('/', (req, res, next) => {
                 name: doc.name,
                 price: doc.price,
                 _id: doc._id,
+                productImage: doc.productImage,
                 request: {
                   type: 'GET',
                   url: 'http://localhost:3000/products/' + doc._id
@@ -39,11 +70,13 @@ router.get('/', (req, res, next) => {
 
 });
 
-router.post('/', (req, res, next) => {
+router.post('/', upload.single('productImage'),(req, res, next) => {
+  console.log(req.file);
   const product = new Product({
     _id: new mongoose.Types.ObjectId(),
     name: req.body.name,
-    price: req.body.price
+    price: req.body.price,
+    productImage: req.file.path
   });
   product.save()
       .then((result) => {
@@ -62,7 +95,10 @@ router.post('/', (req, res, next) => {
         })
       })
       .catch(err => {
-        console.log(err)
+        console.log(err);
+        res.status(500).json({
+          error: err
+        })
       });
 
 });
@@ -71,7 +107,7 @@ router.get('/:productId', (req, res, next) => {
   "use strict";
   const id = req.params.productId;
   Product.findById(id)
-      .select('name price _id')
+      .select('name price _id productImage')
       .exec()
       .then(doc => {
         console.log(doc);
@@ -112,6 +148,9 @@ router.patch('/:productId', (req, res, next) => {
       })
       .catch(err => {
         console.log(err);
+        res.status(500).json({
+          error: err
+        })
       });
 
 
